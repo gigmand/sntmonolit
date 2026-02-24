@@ -1,0 +1,19 @@
+[Unit]
+Description=SNT Monolit Backend
+After=network.target mariadb.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/monolit/backend
+Environment="PATH=/opt/monolit/backend/venv/bin"
+ExecStart=/opt/monolit/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 2
+Restart=always
+RestartSec=5
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

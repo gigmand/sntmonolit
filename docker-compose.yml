@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # MariaDB Database
+  db:
+    image: mariadb:10.11
+    container_name: snt_monolit_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_change_me
+      MYSQL_DATABASE: snt_monolit
+      MYSQL_USER: snt_user
+      MYSQL_PASSWORD: snt_password_change_me
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - snt_network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: snt_monolit_backend
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: snt_monolit
+      DB_USER: snt_user
+      DB_PASSWORD: snt_password_change_me
+      SECRET_KEY: change-this-to-a-random-secret-key-min-32-chars
+      DEBUG: "false"
+    volumes:
+      - ./uploads:/opt/monolit/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - snt_network
+    expose:
+      - "8000"
+
+  # Frontend (Nginx serving React build)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api
+    container_name: snt_monolit_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - snt_network
+
+networks:
+  snt_network:
+    driver: bridge
+
+volumes:
+  db_data:
